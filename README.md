@@ -47,7 +47,7 @@ uvicorn webapp:app --host 127.0.0.1 --port 8000
 Navigate to `http://127.0.0.1:8000/login` and register your first account!
 
 ## 📸 Screenshots
-*(Add your stunning dashboard screenshots and demo GIFs here!)*
+
 
 ## ⚠️ Legal Disclaimer
 This tool is strictly for educational purposes and authorized penetration testing. The developers assume no liability and are not responsible for any misuse or damage caused by this program. Always obtain explicit permission before scanning any networks.
