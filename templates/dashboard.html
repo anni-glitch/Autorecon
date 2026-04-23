@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoRecon Enterprise</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a; --panel-bg: #1e293b; --primary: #3b82f6; --accent: #10b981;
+            --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
+        }
+        [data-theme="light"] {
+            --bg-dark: #f8fafc; --panel-bg: #ffffff; --primary: #2563eb; --accent: #059669;
+            --danger: #dc2626; --text-main: #0f172a; --text-muted: #475569; --border: rgba(0, 0, 0, 0.1);
+        }
+        [data-theme="light"] .log-box { background: #0f172a; border-color: #1e293b; }
+        [data-theme="light"] .mod-card { border-color: #cbd5e1; background: rgba(0,0,0,0.05); }
+        [data-theme="light"] .mod-card.active { border-color: var(--primary); background: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: bold;}
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; }
+        
+        /* Layouts */
+        .sidebar { width: 300px; background: var(--panel-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header span { color: var(--primary); }
+        .history-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .history-item { padding: 12px; background: rgba(0,0,0,0.2); margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; display:flex; justify-content:space-between}
+        .history-item:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.1); }
+        .history-item .target { font-weight: bold; font-size: 0.95rem; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
+        .header { display: flex; justify-content: space-between; padding: 15px 30px; border-bottom: 1px solid var(--border); background: var(--panel-bg); align-items:center; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--accent); color: white; }
+        .btn-logout { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+        
+        .container { padding: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--panel-bg); border: 1px solid var(--border); padding: 25px; border-radius: 12px; }
+        
+        /* Form & Modules */
+        .input-field { width: 100%; padding: 12px; margin-top:8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; border-radius: 6px; box-sizing: border-box; }
+        .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 15px 0; }
+        .mod-card { padding: 10px; border: 1px solid #333; border-radius: 8px; text-align: center; cursor: pointer; font-size: 0.85rem; transition: 0.2s; background: rgba(0,0,0,0.2); opacity: 0.5;}
+        .mod-card.active { border-color: var(--primary); background: rgba(59, 130, 246, 0.2); opacity: 1;}
+        .tools-row { display: flex; justify-content: space-between; gap: 10px; margin-top:20px; }
+        
+        /* Visuals */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 8px 16px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; cursor: pointer; }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Terminal */
+        .log-box { font-family: 'Courier New', monospace; background: #000; padding: 15px; height: 250px; overflow-y: auto; border-radius: 8px; border: 1px solid #333; font-size: 0.9rem; white-space: pre-wrap; color: #a3be8c; }
+        .log-box .err { color: #ef4444; }
+        
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem;}
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-block;}
+        .badge.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge.high { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+        .badge.medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+        .badge.low { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        
+        /* Vis.js network */
+        #network-graph { width: 100%; height: 400px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--border); }
+        
+        /* Modal */
+        .modal { display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center;}
+        .modal-content { background: var(--panel-bg); padding: 30px; border-radius: 12px; width: 400px; border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div>Auto<span>Recon</span> Enterprise</div>
+        </div>
+        <div class="history-list" id="history-container"></div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2 style="margin:0;" id="current-target-display">Enterprise Dashboard</h2>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-logout" onclick="toggleTheme()">🌓 Theme</button>
+                <button class="btn btn-logout" onclick="showApiKeyModal()">🔑 API Keys</button>
+                <button class="btn btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <h3 style="margin-top:0;">Reconnaissance Engine</h3>
+                <label style="font-size:0.9rem; color:var(--text-muted)">Target Domain/IP</label>
+                <input type="text" id="target" class="input-field" placeholder="example.com">
+                
+                <h4 style="margin: 20px 0 10px 0; font-size: 0.9rem;">Interactive Module Grid</h4>
+                <div class="module-grid" id="mod-grid">
+                    <div class="mod-card active" data-mod="dns_enum" onclick="this.classList.toggle('active')">🌐 DNS</div>
+                    <div class="mod-card active" data-mod="port_scanner" onclick="this.classList.toggle('active')">🚪 Ports</div>
+                    <div class="mod-card active" data-mod="dir_fuzzer" onclick="this.classList.toggle('active')">📁 Dir Fuzz</div>
+                    <div class="mod-card active" data-mod="osint" onclick="this.classList.toggle('active')">🕵️ OSINT</div>
+                    <div class="mod-card active" data-mod="ssl_check" onclick="this.classList.toggle('active')">🔒 SSL</div>
+                    <div class="mod-card active" data-mod="tech_fingerprint" onclick="this.classList.toggle('active')">🛠️ Fingerprint</div>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <label style="font-size:0.9rem; color:var(--text-muted)">Custom Directory Payload (.txt)</label>
+                    <input type="file" id="wordlist" accept=".txt" class="input-field" style="padding:8px;">
+                </div>
+                
+                <label style="margin-top: 15px; display:block; font-size:0.9rem;"><input type="checkbox" id="stealth"> Stealth Mode (Passive Only)</label>
+
+                <div class="tools-row">
+                    <button class="btn btn-primary" style="flex:1;" onclick="startScan()">▶ Initiate Live Scan</button>
+                    <button class="btn btn-success" onclick="scheduleScan()">⏱ Schedule Daily</button>
+                </div>
+
+                <h3 style="margin-bottom:10px;">Terminal Output</h3>
+                <div class="log-box" id="term-log">Engine Ready...\n</div>
+            </div>
+
+            <div class="card" style="display:flex; flex-direction:column;">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('tables')">Findings Table</button>
+                    <button class="tab" onclick="switchTab('network')">Attack Graph</button>
+                </div>
+                
+                <!-- Table View -->
+                <div id="tab-tables" class="tab-content active" style="flex:1; overflow-y:auto;">
+                    <table>
+                        <thead><tr><th>Severity</th><th>Module</th><th>Title</th></tr></thead>
+                        <tbody id="findings-table"></tbody>
+                    </table>
+                </div>
+
+                <!-- Network View -->
+                <div id="tab-network" class="tab-content">
+                    <div id="network-graph"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div class="modal" id="api-modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Developer API Keys</h3>
+            <p style="font-size:0.9rem; color:var(--text-muted);">Generate a strict X-API-Key to query the AutoRecon backend from your scripts.</p>
+            <input type="text" id="api-key-val" class="input-field" readonly placeholder="No key generated yet">
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-primary" onclick="generateApiKey()">Generate Key</button>
+                <button class="btn btn-logout" onclick="document.getElementById('api-modal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff Modal -->
+    <div class="modal" id="diff-modal">
+        <div class="modal-content" style="width:600px;">
+            <h3 style="margin-top:0;">Vulnerability Delta (Diff)</h3>
+            <p style="font-size:0.9rem; color:var(--text-muted);">Comparing current scan to previous historical run.</p>
+            <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;" id="diff-content"></div>
+            <button class="btn btn-logout" style="margin-top:20px;" onclick="document.getElementById('diff-modal').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let activeJobId = null;
+        let networkContext = { nodes: new vis.DataSet([]), edges: new vis.DataSet([]) };
+        let networkGraph = null;
+
+        if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
+
+        function toggleTheme() {
+            let current = document.body.getAttribute('data-theme');
+            let nextMode = current === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', nextMode);
+            localStorage.setItem('theme', nextMode);
+        }
+
+        fetch('/api/me').then(async res => {
+            if (!res.ok) window.location.href = '/login';
+            let data = await res.json();
+            if(data.api_key) document.getElementById('api-key-val').value = data.api_key;
+        });
+
+        async function logout() { await fetch('/api/logout', {method:'POST'}); window.location.href='/login'; }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            if(tab === 'network' && !networkGraph) initNetwork();
+        }
+
+        function initNetwork() {
+            let container = document.getElementById('network-graph');
+            let data = { nodes: networkContext.nodes, edges: networkContext.edges };
+            let options = { nodes: { shape: 'dot', size: 16, font: { color: '#ffffff' } }, edges: { color: '#333' }, physics: { stabilization: true } };
+            networkGraph = new vis.Network(container, data, options);
+        }
+
+        function clearAll() {
+            document.getElementById('findings-table').innerHTML = '';
+            document.getElementById('term-log').innerHTML = '';
+            networkContext.nodes.clear(); networkContext.edges.clear();
+        }
+
+        function pushData(f) {
+            // Table
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><span class="badge ${f.severity.toLowerCase()}">${f.severity}</span></td><td>${f.module}</td><td>${f.title}</td>`;
+            document.getElementById('findings-table').appendChild(tr);
+
+            // Network
+            const target = document.getElementById('target').value;
+            if(!networkContext.nodes.get(target)) networkContext.nodes.add({ id: target, label: target, color: '#3b82f6', size: 25 });
+            const modId = target + "_" + f.module;
+            if(!networkContext.nodes.get(modId)) {
+                networkContext.nodes.add({ id: modId, label: f.module, color: '#f97316' });
+                networkContext.edges.add({ from: target, to: modId });
+            }
+            const vulnId = Math.random().toString();
+            let vColor = f.severity === 'Critical' ? '#ef4444' : '#10b981';
+            networkContext.nodes.add({ id: vulnId, label: f.title.substring(0,10)+'...', color: vColor, size: 10 });
+            networkContext.edges.add({ from: modId, to: vulnId });
+        }
+
+        function termLog(msg, type='info') {
+            const term = document.getElementById('term-log');
+            const span = document.createElement('span'); span.className = type;
+            span.innerText = `[${type==='err'?'-':'*'}] ` + msg + '\n';
+            term.appendChild(span); term.scrollTop = term.scrollHeight;
+        }
+
+        async function startScan() {
+            const target = document.getElementById('target').value;
+            if(!target) return alert('Target missing');
+            document.getElementById('current-target-display').innerText = target;
+            if(ws) ws.close(); clearAll(); termLog('Starting engine...', 'info');
+
+            const mods = Array.from(document.querySelectorAll('.mod-card.active')).map(el => el.getAttribute('data-mod')).join(',');
+            const fd = new FormData();
+            fd.append('target', target);
+            if(document.getElementById('stealth').checked) fd.append('stealth', 'true');
+            if(mods) fd.append('modules', mods);
+            
+            const file = document.getElementById('wordlist').files[0];
+            if(file) fd.append('wordlist', file);
+
+            const res = await fetch('/api/scan', { method: 'POST', body: fd });
+            const data = await res.json();
+            activeJobId = data.job_id;
+            
+            ws = new WebSocket(`${window.location.protocol==='https:'?'wss:':'ws:'}//${window.location.host}/ws/progress/${activeJobId}`);
+            ws.onmessage = e => {
+                let j = JSON.parse(e.data);
+                if(j.type === 'module_start') termLog(`${j.module} loading...`);
+                if(j.type === 'finding') { termLog(`${j.finding.title}`, 'err'); pushData(j.finding); }
+                if(j.type === 'job_complete') refreshHistory();
+            }
+            setTimeout(refreshHistory, 1000);
+        }
+
+        async function scheduleScan() {
+            const target = document.getElementById('target').value;
+            if(!target) return alert("Select target to schedule");
+            const fd = new FormData();
+            fd.append('target', target); fd.append('interval_hours', 24);
+            const res = await fetch('/api/schedule', { method: 'POST', body: fd });
+            if(res.ok) alert("Job Scheduled Daily!");
+        }
+
+        // History diffing
+        let jobsCache = [];
+        async function refreshHistory() {
+            const res = await fetch('/api/history');
+            jobsCache = await res.json();
+            let hc = document.getElementById('history-container'); hc.innerHTML = '';
+            jobsCache.forEach(j => {
+                let div = document.createElement('div'); div.className = 'history-item';
+                div.innerHTML = `<div><div class="target">${j.target} #ID:${j.id}</div><div class="date">${j.status.toUpperCase()}</div></div>
+                                 <button class="btn btn-primary" style="font-size:0.7rem; padding:4px;" onclick="compareJob(${j.id}, '${j.target}')">Compare</button>`;
+                div.onclick = (e) => { if(e.target.tagName !== 'BUTTON') loadJob(j.id, j.target); };
+                hc.appendChild(div);
+            });
+        }
+
+        async function loadJob(id, target) {
+            clearAll(); document.getElementById('target').value = target; document.getElementById('current-target-display').innerText = target; activeJobId = id;
+            termLog(`Loading DB cache for Job ${id}...`);
+            const res = await fetch(`/api/jobs/${id}/findings`);
+            const findings = await res.json();
+            findings.forEach(f => pushData(f));
+        }
+
+        async function compareJob(currentId, target) {
+            // Find immediately preceding job for same target
+            const pastJobs = jobsCache.filter(j => j.target === target && j.id < currentId);
+            if(pastJobs.length === 0) return alert("No previous scan for " + target + " to compare to!");
+            
+            const pastId = pastJobs[0].id;
+            const res = await fetch(`/api/diff/${pastId}/${currentId}`);
+            const diff = await res.json();
+            
+            let html = `<h4>New Vulnerabilities in Job ${currentId}</h4><ul>`;
+            diff.new_findings.forEach(f => html += `<li style="color:#ef4444">${f.module}: ${f.title}</li>`);
+            if(!diff.new_findings.length) html += "<li>None</li>";
+            html += `</ul><h4>Resolved / Missing since Job ${pastId}</h4><ul>`;
+            diff.resolved.forEach(f => html += `<li style="color:#10b981">${f.module}: ${f.title}</li>`);
+            if(!diff.resolved.length) html += "<li>None</li>";
+            html += "</ul>";
+            
+            document.getElementById('diff-content').innerHTML = html;
+            document.getElementById('diff-modal').style.display='flex';
+        }
+
+        function showApiKeyModal() { document.getElementById('api-modal').style.display = 'flex'; }
+        async function generateApiKey() {
+            const res = await fetch('/api/keys/generate', {method: 'POST'});
+            const data = await res.json();
+            document.getElementById('api-key-val').value = data.api_key;
+        }
+
+        refreshHistory();
+    </script>
+</body>
+</html>
