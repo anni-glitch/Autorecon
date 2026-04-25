@@ -1,19 +1,21 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Install system dependencies, notably nmap
-RUN apt-get update && \
-    apt-get install -y nmap && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies (Nmap)
+RUN apt-get update && apt-get install -y \
+    nmap \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirement files and install
+# Copy and install Python requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy the rest of the application
 COPY . .
 
-# Set default entrypoint to the CLI
-ENTRYPOINT ["python", "main.py"]
+# Expose the port (Render uses $PORT)
+EXPOSE 8000
+
+# Start the application using uvicorn
+CMD ["sh", "-c", "uvicorn webapp:app --host 0.0.0.0 --port ${PORT:-8000}"]
