@@ -108,8 +108,8 @@ async def login_for_access_token(request: Request, response: Response, username:
     access_token = auth.create_access_token(data={"sub": user.username})
     refresh_token = auth.create_refresh_token(data={"sub": user.username})
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax", secure=False)
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax", secure=False)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax", secure=True)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax", secure=True)
     return {"message": "Success"}
 
 @app.post("/api/register")
@@ -136,8 +136,8 @@ async def register_user(request: Request, response: Response, username: str = Fo
     access_token = auth.create_access_token(data={"sub": user.username})
     refresh_token = auth.create_refresh_token(data={"sub": user.username})
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax", secure=False)
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax", secure=False)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax", secure=True)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax", secure=True)
     return {"message": "Success"}
 
 @app.post("/api/refresh")
@@ -159,7 +159,7 @@ async def refresh_token(response: Response, refresh_token: Optional[str] = Cooki
         return JSONResponse(status_code=401, content={"error": "User deleted"})
         
     new_access_token = auth.create_access_token(data={"sub": user.username})
-    response.set_cookie(key="access_token", value=new_access_token, httponly=True, samesite="lax", secure=False)
+    response.set_cookie(key="access_token", value=new_access_token, httponly=True, samesite="lax", secure=True)
     return {"message": "Token refreshed"}
 
 @app.post("/api/logout")
