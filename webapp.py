@@ -256,6 +256,7 @@ async def export_job(job_id: int, format: str = "json", current_user: models.Use
     job = db.query(models.ScanJob).filter(models.ScanJob.id == job_id, models.ScanJob.owner_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    findings = db.query(models.Finding).filter(models.Finding.job_id == job_id).all()
         
     if format == "pdf":
         buffer = io.BytesIO()
