@@ -27,11 +27,11 @@ class DirFuzzerModule(BaseModule):
         sem = asyncio.Semaphore(20)
         
         async def fetch_path(path):
-            url = f"https://{target}/{path}"
+            url = f"http://{target}/{path}"
             async with sem:
                 try:
-                    resp = await client.get(url, timeout=10, follow_redirects=False)
-                    if resp.status_code in [200, 301, 302, 403]:
+                    resp = await client.get(url, timeout=10, follow_redirects=True)
+                    if resp.status_code in [200, 301, 302, 403, 401]:
                         return path, resp.status_code, len(resp.content), resp.text
                 except Exception:
                     pass
