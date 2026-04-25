@@ -98,8 +98,8 @@
             <div style="display:flex; align-items:center; gap:20px;">
                 <h2 style="margin:0;" id="current-target-display">Enterprise Dashboard</h2>
                 <div id="header-actions" style="display: none; gap: 10px;">
-                    <button class="btn btn-primary" onclick="downloadReport(activeJobId, 'html')" style="padding: 5px 12px; font-size: 0.75rem;">
-                        📥 Download Report
+                    <button class="btn btn-primary" onclick="downloadReport(activeJobId, 'pdf')" style="padding: 5px 12px; font-size: 0.75rem;">
+                        📥 Download PDF Report
                     </button>
                 </div>
             </div>
@@ -342,8 +342,8 @@
                             <div style="font-size:0.75rem; color:#94a3b8">${new Date(j.created_at).toLocaleDateString()}</div>
                         </div>
                         <div class="actions">
-                            <button class="download-btn" onclick="downloadReport(${j.id}, 'html')" title="Download Report">
-                                <i class="fas fa-download"></i>
+                            <button class="download-btn" onclick="downloadReport(${j.id}, 'pdf')" title="Download PDF Report">
+                                <i class="fas fa-file-pdf"></i>
                             </button>
                             <button class="download-btn" onclick="compareJob(${j.id}, '${j.target}')" title="Compare">
                                 <i class="fas fa-columns"></i>
