@@ -15,9 +15,12 @@ class PortScannerModule(BaseModule):
             # Wrap blocking call in asyncio.to_thread
             await asyncio.to_thread(nm.scan, target, arguments="-T4 --top-ports 1000 -sV")
         except nmap.PortScannerError as e:
+             err_msg = str(e)
+             if "nmap program was not found" in err_msg.lower():
+                 err_msg = "Nmap binary not found on the host system. Please install Nmap (https://nmap.org) to enable port scanning."
              return [FindingResult(
                 module=self.name, target=target, category="Error", severity="info",
-                title="Nmap Error", description=str(e)
+                title="Nmap Missing", description=err_msg
             )]
         except Exception as e:
             return [FindingResult(
