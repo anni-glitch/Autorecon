@@ -298,6 +298,9 @@ async def start_scan(
     return {"job_id": job_id, "status": "started"}
 
 async def background_scan_task(job_id: int, target: str, stealth: bool, selected_modules: list, custom_payloads: dict = None):
+    # CRITICAL FIX: Delay engine start to allow remote WebSocket TLS handshakes to complete over the WAN
+    await asyncio.sleep(1.5)
+    
     limits = httpx.Limits(max_connections=20, max_keepalive_connections=20)
     
     async def web_progress_callback(msg: dict):
