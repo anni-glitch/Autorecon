@@ -6,10 +6,10 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from modules.base import FindingResult, BaseModule
 
 class EvasionClientWrapper:
-    def __init__(self, proxies=None):
-        transport = httpx.AsyncHTTPTransport(retries=2)
+    def __init__(self, proxy_url=None):
+        transport = httpx.AsyncHTTPTransport(retries=2, verify=False, proxy=proxy_url)
         # Using native httpx retries for connection drops, plus custom async logic for 429 backoffs.
-        self.client = httpx.AsyncClient(verify=False, proxies=proxies, timeout=15, transport=transport)
+        self.client = httpx.AsyncClient(timeout=15, transport=transport)
     
     async def get(self, *args, **kwargs):
         for attempt in range(3):
@@ -64,10 +64,9 @@ async def run_engine(
 
     # Proxy Hook Parsing
     proxy_url = os.getenv("AUTORECON_PROXY", None)
-    proxies = {"all://": proxy_url} if proxy_url else None
     
     # Initialize the Global Master Evasion Client for this run
-    global_client = EvasionClientWrapper(proxies=proxies)
+    global_client = EvasionClientWrapper(proxy_url=proxy_url)
     for m in modules_to_run:
         m.client = global_client
 
