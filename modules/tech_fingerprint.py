@@ -15,10 +15,11 @@ class TechFingerprintModule(BaseModule):
             cleanup = True
             
         try:
-            resp = await client.get(f"https://{target}", timeout=15, follow_redirects=True)
+            url = f"http://{target}"
+            resp = await client.get(url, timeout=15, follow_redirects=True)
             html = resp.text
             headers = {k.lower(): v.lower() for k, v in resp.headers.items()}
-            soup = BeautifulSoup(html, "lxml")
+            soup = BeautifulSoup(html, "html.parser")
             
             detected = []
             
@@ -88,9 +89,15 @@ class TechFingerprintModule(BaseModule):
                 ))
                 
         except Exception as e:
+            err_msg = str(e)
+            if "ConnectTimeout" in err_msg:
+                err_msg = "Connection timed out. The target may be blocking requests or is offline."
+            elif "ConnectError" in err_msg:
+                err_msg = "Connection refused. Target web server might be down."
+            
             findings.append(FindingResult(
                 module=self.name, target=target, category="Error", severity="info",
-                title="Error fingerprinting", description=str(e)
+                title="Fingerprinting Failed", description=err_msg
             ))
             
         finally:
