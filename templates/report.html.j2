@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoRecon Report - {{ target }}</title>
+    <style>
+        :root {
+            --bg-dark: #0f1117;
+            --surface: #1a1d27;
+            --accent: #6e56cf;
+            --text: #e0e0e0;
+            --critical: #ff4444;
+            --high: #ff8800;
+            --medium: #ffcc00;
+            --low: #4488ff;
+            --info: #00cccc;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text); margin: 0; display: flex; }
+        .sidebar { width: 250px; background-color: var(--surface); padding: 20px; height: 100vh; position: fixed; overflow-y: auto; border-right: 1px solid #333; }
+        .sidebar h2 { color: var(--accent); margin-bottom: 20px; font-size: 24px; }
+        .sidebar a { color: var(--text); text-decoration: none; display: block; padding: 10px 0; border-bottom: 1px solid #333; }
+        .sidebar a:hover { color: var(--accent); }
+        .main { margin-left: 290px; padding: 40px; flex-grow: 1; max-width: 1200px; }
+        h1 { margin-top: 0; font-size: 32px; }
+        .header-meta { color: #888; font-size: 14px; margin-bottom: 30px; }
+        .summary-bar { display: flex; gap: 20px; margin-bottom: 40px; }
+        .card { background-color: var(--surface); border-radius: 8px; padding: 20px; flex: 1; text-align: center; border-left: 5px solid; }
+        .card.critical { border-color: var(--critical); }
+        .card.high { border-color: var(--high); }
+        .card.medium { border-color: var(--medium); }
+        .card.low { border-color: var(--low); }
+        .card.info { border-color: var(--info); }
+        .card.risk { border-color: var(--accent); }
+        .card .value { font-size: 32px; font-weight: bold; margin-top: 10px; }
+        .card .label { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
+        .module-section { margin-bottom: 50px; background: var(--surface); padding: 20px; border-radius: 8px; }
+        .module-section h2 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 10px; color: var(--accent); }
+        .finding-card { background-color: #2a2e3d; margin-bottom: 15px; border-radius: 6px; padding: 15px; border-left: 4px solid; }
+        .finding-card.critical { border-color: var(--critical); }
+        .finding-card.high { border-color: var(--high); }
+        .finding-card.medium { border-color: var(--medium); }
+        .finding-card.low { border-color: var(--low); }
+        .finding-card.info { border-color: var(--info); }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #fff; margin-right: 10px; }
+        .badge.critical { background-color: var(--critical); }
+        .badge.high { background-color: var(--high); }
+        .badge.medium { background-color: var(--medium); color: #000; }
+        .badge.low { background-color: var(--low); }
+        .badge.info { background-color: var(--info); color: #000; }
+        .finding-title { font-weight: bold; font-size: 18px; display: flex; align-items: center; margin-bottom: 10px; }
+        .finding-desc { margin-bottom: 10px; line-height: 1.5; color: #ccc; }
+        details { background: #1a1d27; padding: 10px; border-radius: 4px; border: 1px solid #333; }
+        summary { cursor: pointer; color: var(--accent); font-weight: bold; }
+        pre { background: #0f1117; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; color: #a5d6ff; }
+        footer { margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>AutoRecon</h2>
+        <a href="#summary">Summary</a>
+        {% set unique_modules = [] %}
+        {% for m in summary.by_module.keys() %}
+            <a href="#mod_{{ m }}">{{ m }} <span style="float:right;color:#888;">{{ summary.by_module[m] }}</span></a>
+            {% set _ = unique_modules.append(m) %}
+        {% endfor %}
+    </div>
+
+    <div class="main">
+        <h1>Scan Report: {{ target }}</h1>
+        <div class="header-meta">
+            Target: <strong>{{ target }}</strong> | Generated: <strong>{{ datetime }}</strong> | AutoRecon v{{ version }}
+        </div>
+
+        <h2 id="summary" style="display:none;">Summary</h2>
+        <div class="summary-bar">
+            <div class="card critical"><div class="label">Critical</div><div class="value" style="color:var(--critical)">{{ summary.by_severity.critical }}</div></div>
+            <div class="card high"><div class="label">High</div><div class="value" style="color:var(--high)">{{ summary.by_severity.high }}</div></div>
+            <div class="card medium"><div class="label">Medium</div><div class="value" style="color:var(--medium)">{{ summary.by_severity.medium }}</div></div>
+            <div class="card low"><div class="label">Low</div><div class="value" style="color:var(--low)">{{ summary.by_severity.low }}</div></div>
+            <div class="card info"><div class="label">Info</div><div class="value" style="color:var(--info)">{{ summary.by_severity.info }}</div></div>
+            <div class="card risk"><div class="label">Total Risk Score</div><div class="value" style="color:var(--accent)">{{ summary.risk_score }}</div></div>
+        </div>
+
+        {% for mod in summary.by_module.keys() %}
+        <div class="module-section" id="mod_{{ mod }}">
+            <h2>{{ mod }} <span class="badge info" style="float:right">{{ summary.by_module[mod] }} findings</span></h2>
+            {% for f in findings if f.module == mod %}
+            <div class="finding-card {{ f.severity }}">
+                <div class="finding-title">
+                    <span class="badge {{ f.severity }}">{{ f.severity }}</span> {{ f.title }}
+                </div>
+                <div class="finding-desc">{{ f.description }}</div>
+                {% if f.data %}
+                <details>
+                    <summary>Raw Data</summary>
+                    <pre>{{ f.data | tojson(indent=4) }}</pre>
+                </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <footer>
+            AutoRecon v{{ version }} | Generated {{ datetime }} | For authorized use only
+        </footer>
+    </div>
+</body>
+</html>
