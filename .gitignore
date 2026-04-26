@@ -1,0 +1,17 @@
+# Environments
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database (Never upload live user data or hashes!)
+autorecon.db
+*.sqlite3
+
+# Secrets
+.env
+
+# Scan Output & Temporary files
+reports/
+.checkpoint_*
